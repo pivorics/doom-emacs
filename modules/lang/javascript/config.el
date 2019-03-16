@@ -47,10 +47,15 @@
 
   (add-hook 'js2-mode-hook #'rainbow-delimiters-mode)
   ;; Indent switch-case another step
-  (setq-hook! 'js2-mode-hook js-switch-indent-offset js2-basic-offset)
+  (setq-hook! 'js2-mode-hook
+    js-switch-indent-offset js2-basic-offset
+    mode-name "JS2")
 
   (set-electric! 'js2-mode :chars '(?\} ?\) ?. ?:))
-  (set-repl-handler! 'js2-mode #'+javascript/repl)
+  (set-repl-handler! 'js2-mode #'+javascript/open-repl)
+
+  (after! projectile
+    (add-to-list 'projectile-globally-ignored-directories "node_modules"))
 
   (map! :map js2-mode-map
         :localleader
@@ -71,7 +76,7 @@
   (add-to-list 'magic-mode-alist '(+javascript-jsx-file-p . rjsx-mode))
   :config
   (set-electric! 'rjsx-mode :chars '(?\} ?\) ?. ?>))
-  (when (featurep! :feature syntax-checker)
+  (when (featurep! :tools flycheck)
     (add-hook! 'rjsx-mode-hook
       ;; jshint doesn't know how to deal with jsx
       (push 'javascript-jshint flycheck-disabled-checkers)))
@@ -120,15 +125,22 @@
 ;;
 ;; Tools
 
+(when (featurep! +lsp)
+  (add-hook! (js2-mode rjsx-mode typescript-mode) #'lsp!))
+
+
 (def-package! tide
+  :unless (featurep! +lsp)
   :defer t
   :init
   ;; Don't let hard errors stop the user from opening js files.
   (defun +javascript|init-tide ()
     "Enable `tide-mode' if node is available."
-    (if (executable-find "node")
-        (tide-setup)
-      (message "Couldn't find `node', aborting tide server")))
+    (cond ((not buffer-file-name)
+           (add-hook 'after-save-hook #'+javascript|init-tide nil t))
+          ((executable-find "node")
+           (tide-setup))
+          ((message "Couldn't find `node', aborting tide server"))))
   (add-hook! (js2-mode typescript-mode) #'+javascript|init-tide)
 
   (defun +javascript|init-tide-in-web-mode ()
@@ -146,7 +158,7 @@
     (setq-default company-backends (delq 'company-tide (default-value 'company-backends))))
   (set-company-backend! 'tide-mode 'company-tide)
   ;; navigation
-  (set-lookup-handlers! 'tide-mode
+  (set-lookup-handlers! 'tide-mode :async t
     :definition #'tide-jump-to-definition
     :references #'tide-references
     :documentation #'tide-documentation-at-point)

@@ -1,10 +1,18 @@
 ;;; core-os.el -*- lexical-binding: t; -*-
 
 ;; clipboard
-(setq x-select-request-type '(UTF8_STRING COMPOUND_TEXT TEXT STRING)
-      ;; Use a shared clipboard
-      select-enable-clipboard t
-      select-enable-primary t)
+(setq x-select-request-type '(UTF8_STRING COMPOUND_TEXT TEXT STRING))
+
+;; fewer opts to process for systems that don't need them
+(unless IS-MAC   (setq command-line-ns-option-alist nil))
+(unless IS-LINUX (setq command-line-x-option-alist nil))
+
+;; Fix the clipboard in terminal or daemon Emacs (non-GUI)
+(defun doom|init-clipboard-in-tty-emacs ()
+  (if IS-MAC
+      (if (require 'osx-clipboard nil t) (osx-clipboard-mode))
+    (if (require 'xclip nil t) (xclip-mode))))
+(add-hook 'tty-setup-hook #'doom|init-clipboard-in-tty-emacs)
 
 ;; stop copying each visual state move to the clipboard:
 ;; https://bitbucket.org/lyro/evil/issue/336/osx-visual-state-copies-the-region-on
@@ -13,16 +21,6 @@
 
 (defmacro set-env! (&rest _vars)
   "Inject VARS from your shell environment into Emacs.")
-
-;; FIXME obsolete :env
-(def-setting! :env (&rest vars)
-  :obsolete set-env!
-  (when (featurep 'exec-path-from-shell)
-    `(exec-path-from-shell-copy-envs ,@vars)))
-
-;; key conventions:
-;;   alt/option      = meta
-;;   windows/command = super
 
 (cond (IS-MAC
        (setq mac-command-modifier 'super
@@ -39,14 +37,11 @@
              ;; than a new one
              ns-pop-up-frames nil)
 
-       ;; Fix the clipboard in terminal or daemon Emacs (non-GUI)
-       (when (or (daemonp) (not (display-graphic-p)))
-         (add-hook 'doom-post-init-hook #'osx-clipboard-mode))
-
        (when (or (daemonp) (display-graphic-p))
          ;; Syncs ns frame parameters with theme (and fixes mismatching text
          ;; colr in the frame title)
-         (require 'ns-auto-titlebar nil t)
+         (when (require 'ns-auto-titlebar nil t)
+           (add-hook 'doom-load-theme-hook #'ns-auto-titlebar-mode))
 
          ;; A known problem with GUI Emacs on MacOS (or daemons started via
          ;; launchctl or brew services): it runs in an isolated
@@ -68,12 +63,7 @@
              x-underline-at-descent-line t))  ; draw underline lower
 
       (IS-WINDOWS
-       (setq w32-get-true-file-attributes nil  ; fix file io slowdowns
-             ;; map window keys to super (unreliable)
-             w32-pass-lwindow-to-system nil
-             w32-pass-rwindow-to-system nil
-             w32-lwindow-modifier 'super
-             w32-rwindow-modifier 'super)
+       (setq w32-get-true-file-attributes nil) ; fix file io slowdowns
        (when (display-graphic-p)
          (setenv "GIT_ASKPASS" "git-gui--askpass"))))
 

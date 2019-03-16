@@ -1,9 +1,5 @@
 ;;; feature/evil/+commands.el -*- lexical-binding: t; -*-
 
-(evil-define-command +evil:cleanup-session (bang)
-  (interactive "<!>")
-  (doom/cleanup-session bang))
-
 (evil-define-operator +evil:open-scratch-buffer (bang)
   (interactive "<!>")
   (doom/open-scratch-buffer bang))
@@ -46,6 +42,26 @@ This command understands vim file modifiers (like %:p:h). See
   (interactive "<r>")
   (reverse-region beg end))
 
+(evil-define-command +evil:cd (&optional path)
+  "Change `default-directory' with `cd'."
+  (interactive "<f>")
+  (let ((path (or path "~")))
+    (cd path)
+    (message "Changed directory to '%s'" (abbreviate-file-name (expand-file-name path)))))
+
+(evil-define-command +evil:kill-all-buffers (&optional bang)
+  "Kill all buffers. If BANG, kill current session too."
+  (interactive "<!>")
+  (if (and bang (fboundp '+workspace/kill-session))
+      (+workspace/kill-session)
+    (doom/kill-all-buffers)))
+
+(evil-define-command +evil:kill-matching-buffers (&optional bang pattern)
+  "Kill all buffers matching PATTERN regexp. If BANG, only match project
+buffers."
+  (interactive "<a>")
+  (doom/kill-matching-buffers pattern bang))
+
 
 ;;
 ;; Commands
@@ -61,7 +77,7 @@ This command understands vim file modifiers (like %:p:h). See
 (evil-ex-define-cmd "ral[ign]"     #'+evil:align-right)
 (evil-ex-define-cmd "enhtml"       #'+web:encode-html-entities)
 (evil-ex-define-cmd "dehtml"       #'+web:decode-html-entities)
-(evil-ex-define-cmd "mc"           #'+evil:mc)
+(evil-ex-define-cmd "mc"           #'+multiple-cursors:evil-mc)
 (evil-ex-define-cmd "iedit"        #'evil-multiedit-ex-match)
 (evil-ex-define-cmd "na[rrow]"     #'+evil:narrow-buffer)
 (evil-ex-define-cmd "retab"        #'+evil:retab)
@@ -85,27 +101,27 @@ This command understands vim file modifiers (like %:p:h). See
 ;;; GIT
 (evil-ex-define-cmd "gist"        #'+gist:send)  ; send current buffer/region to gist
 (evil-ex-define-cmd "gistl"       #'+gist:list)  ; list gists by user
-(evil-ex-define-cmd "gbrowse"     #'+vc:git-browse)        ; show file in github/gitlab
-(evil-ex-define-cmd "gissues"     #'+vc/git-browse-issues) ; show github issues
-(evil-ex-define-cmd "git"         #'magit-status)           ; open magit status window
+(evil-ex-define-cmd "gbrowse"     #'+vc:git-browse)       ; show file/region in github/gitlab
+(evil-ex-define-cmd "gissues"     #'forge-browse-issues)  ; show github issues
+(evil-ex-define-cmd "git"         #'magit-status)         ; open magit status window
 (evil-ex-define-cmd "gstage"      #'magit-stage)
 (evil-ex-define-cmd "gunstage"    #'magit-unstage)
 (evil-ex-define-cmd "gblame"      #'magit-blame)
 (evil-ex-define-cmd "grevert"     #'git-gutter:revert-hunk)
 
 ;;; Dealing with buffers
-(evil-ex-define-cmd "clean[up]"   #'+evil:cleanup-session)
 (evil-ex-define-cmd "k[ill]"      #'doom/kill-this-buffer)
-(evil-ex-define-cmd "k[ill]all"   #'+default:kill-all-buffers)
-(evil-ex-define-cmd "k[ill]m"     #'+default:kill-matching-buffers)
+(evil-ex-define-cmd "k[ill]all"   #'+evil:kill-all-buffers)
+(evil-ex-define-cmd "k[ill]m"     #'+evil:kill-matching-buffers)
 (evil-ex-define-cmd "k[ill]o"     #'doom/kill-other-buffers)
+(evil-ex-define-cmd "k[ill]b"     #'doom/kill-buried-buffers)
 (evil-ex-define-cmd "l[ast]"      #'doom/popup-restore)
 (evil-ex-define-cmd "m[sg]"       #'view-echo-area-messages)
 (evil-ex-define-cmd "pop[up]"     #'doom/popup-this-buffer)
 
 ;;; Project navigation
 (evil-ex-define-cmd "a"           #'projectile-find-other-file)
-(evil-ex-define-cmd "cd"          #'+default:cd)
+(evil-ex-define-cmd "cd"          #'+evil:cd)
 (evil-ex-define-cmd "pwd"         #'+evil:pwd)
 
 (cond ((featurep! :completion ivy)

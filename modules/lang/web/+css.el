@@ -35,6 +35,10 @@
 ;;
 ;; Tools
 
+(when (featurep! +lsp)
+  (add-hook! (css-mode sass-mode less-css-mode) #'lsp!))
+
+
 (def-package! counsel-css
   :when (featurep! :completion ivy)
   :commands counsel-css
